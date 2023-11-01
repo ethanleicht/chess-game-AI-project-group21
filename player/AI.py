@@ -250,47 +250,118 @@ class AI:
         return arr
 
 
-    def calculateb(self,gametiles):
-        value=0
+def calculateb(self, gametiles):
+    material_value = {
+        'P': -100, 'N': -320, 'B': -330, 'R': -500, 'Q': -900, 'K': -20000,
+        'p': 100, 'n': 320, 'b': 330, 'r': 500, 'q': 900, 'k': 20000
+    }
+
+    # Positional values for pawns
+    pawn_positional_value = [
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [5, 10, 10, -20, -20, 10, 10, 5],
+    [5, -5, -10, 0, 0, -10, -5, 5],
+    [0, 0, 0, 20, 20, 0, 0, 0],
+    [5, 5, 10, 25, 25, 10, 5, 5],
+    [10, 10, 20, 30, 30, 20, 10, 10],
+    [50, 50, 50, 50, 50, 50, 50, 50],
+    [0, 0, 0, 0, 0, 0, 0, 0] ]
+    # Positional values for knights
+    knight_positional_value = [
+    [-50, -40, -30, -30, -30, -30, -40, -50],
+    [-40, -20, 0, 5, 5, 0, -20, -40],
+    [-30, 5, 10, 15, 15, 10, 5, -30],
+    [-30, 0, 15, 20, 20, 15, 0, -30],
+    [-30, 5, 15, 20, 20, 15, 5, -30],
+    [-30, 0, 10, 15, 15, 10, 0, -30],
+    [-40, -20, 0, 0, 0, 0, -20, -40],
+    [-50, -40, -30, -30, -30, -30, -40, -50] ]
+
+    # Positional values for bishops
+    bishop_positional_value = [
+    [-20, -10, -10, -10, -10, -10, -10, -20],
+    [-10, 5, 0, 0, 0, 0, 5, -10],
+    [-10, 10, 10, 10, 10, 10, 10, -10],
+    [-10, 0, 10, 10, 10, 10, 0, -10],
+    [-10, 5, 5, 10, 10, 5, 5, -10],
+    [-10, 0, 5, 10, 10, 5, 0, -10],
+    [-10, 0, 0, 0, 0, 0, 0, -10],
+    [-20, -10, -10, -10, -10, -10, -10, -20] ]
+    # Positional values for rooks
+    rook_positional_value = [
+    [0, 0, 0, 5, 5, 0, 0, 0],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [-5, 0, 0, 0, 0, 0, 0, -5],
+    [5, 10, 10, 10, 10, 10, 10, 5],
+    [0, 0, 0, 0, 0, 0, 0, 0] ]
+    # Positional values for queens
+    queen_positional_value = [
+    [-20, -10, -10, -5, -5, -10, -10, -20],
+    [-10, 0, 5, 0, 0, 0, 0, -10],
+    [-10, 5, 5, 5, 5, 5, 0, -10],
+    [0, 0, 5, 5, 5, 5, 0, -5],
+    [-5, 0, 5, 5, 5, 5, 0, -5],
+    [-10, 0, 5, 5, 5, 5, 0, -10],
+    [-10, 0, 0, 0, 0, 0, 0, -10],
+    [-20, -10, -10, -5, -5, -10, -10, -20] ]
+    # Positional values for kings (early game)
+    king_early_positional_value = [
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-30, -40, -40, -50, -50, -40, -40, -30],
+    [-20, -30, -30, -40, -40, -30, -30, -20],
+    [-10, -20, -20, -20, -20, -20, -20, -10],
+    [20, 20, 0, 0, 0, 0, 20, 20],
+    [20, 30, 10, 0, 0, 10, 30, 20] ]
+    # Positional values for kings (end game)
+    king_end_positional_value = [
+    [-50, -40, -30, -20, -20, -30, -40, -50],
+    [-30, -20, -10, 0, 0, -10, -20, -30],
+    [-30, -10, 20, 30, 30, 20, -10, -30],
+    [-30, -10, 30, 40, 40, 30, -10, -30],
+    [-30, -10, 30, 40, 40, 30, -10, -30],
+    [-30, -10, 20, 30, 30, 20, -10, -30],
+    [-30, -30, 0, 0, 0, 0, -30, -30],
+    [-50, -30, -30, -30, -30, -30, -30, -50] ]
+
+    value = 0
+    for y in range(8):
         for x in range(8):
-            for y in range(8):
-                    if gametiles[y][x].pieceonTile.tostring()=='P':
-                        value=value-100
+            piece = gametiles[y][x].pieceonTile.tostring()
+            if piece:
+                # Calculate material value
+                value += material_value.get(piece, 0)
 
-                    if gametiles[y][x].pieceonTile.tostring()=='N':
-                        value=value-350
+                # Calculate positional value
+                if piece.upper() == 'P':
+                    positional_value = pawn_positional_value
+                elif piece.upper() == 'N':
+                    positional_value = knight_positional_value
+                elif piece.upper() == 'B':
+                    positional_value = bishop_positional_value
+                elif piece.upper() == 'R':
+                    positional_value = rook_positional_value
+                elif piece.upper() == 'Q':
+                    positional_value = queen_positional_value
+                elif piece.upper() == 'K':
+                    positional_value = king_end_positional_value if self.is_endgame() else king_early_positional_value
+                else:
+                    continue
 
-                    if gametiles[y][x].pieceonTile.tostring()=='B':
-                        value=value-350
+                # Adjust value based on the piece's position
+                if piece.islower():  # Black pieces
+                    value += positional_value[7 - y][x]
+                else:  # White pieces
+                    value += positional_value[y][x]
+                
+                # Additional evaluation criteria can be added here (e.g., king safety, control of the center, mobility, etc.)
 
-                    if gametiles[y][x].pieceonTile.tostring()=='R':
-                        value=value-525
+    return value
 
-                    if gametiles[y][x].pieceonTile.tostring()=='Q':
-                        value=value-1000
-
-                    if gametiles[y][x].pieceonTile.tostring()=='K':
-                        value=value-10000
-
-                    if gametiles[y][x].pieceonTile.tostring()=='p':
-                        value=value+100
-
-                    if gametiles[y][x].pieceonTile.tostring()=='n':
-                        value=value+350
-
-                    if gametiles[y][x].pieceonTile.tostring()=='b':
-                        value=value+350
-
-                    if gametiles[y][x].pieceonTile.tostring()=='r':
-                        value=value+525
-
-                    if gametiles[y][x].pieceonTile.tostring()=='q':
-                        value=value+1000
-
-                    if gametiles[y][x].pieceonTile.tostring()=='k':
-                        value=value+10000
-
-        return value
 
 
     def move(self,gametiles,y,x,n,m):
