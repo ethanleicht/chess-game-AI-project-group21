@@ -254,6 +254,23 @@ class AI:
         # Initialize material and positional values to zero
         material_value = 0
         positional_value = 0
+        development_value = 0
+
+        # Define bonuses and penalties for piece development
+        development_bonuses = {
+            'N': 30,  # Bonus for developing a knight
+            'B': 30,  # Bonus for developing a bishop 
+        }
+        
+        # Squares considered effective for piece development
+        effective_squares = {
+            'N': [(2, 2), (2, 5), (5, 2), (5, 5)],  # Good squares for knights
+            'B': [(2, 2), (2, 5), (5, 2), (5, 5)],  # Good squares for bishops 
+        }
+
+        # Penalty for unnecessary pawn moves
+        pawn_move_penalty = -10
+        
         # Initialize king safety values to zero
         white_king_safety = 0
         black_king_safety = 0
@@ -275,6 +292,9 @@ class AI:
         doubled_pawn_penalty = -20
         isolated_pawn_penalty = -20
         passed_pawn_bonus = 30
+
+        # Additional evaluation for opening principles
+        opening_bonus = 0
 
         # Control of center squares (D4, D5, E4, E5)
         center_squares = [(3, 3), (3, 4), (4, 3), (4, 4)]
@@ -409,6 +429,42 @@ class AI:
             if piece in center_control_bonus:
                 center_control_value += center_control_bonus[piece] if piece.islower() else -center_control_bonus[piece]
 
+        # Control the center (e4, d4, e5, d5)
+        for square in center_squares:
+            piece = gametiles[square[1]][square[0]].pieceonTile.tostring()
+            if piece.lower() in ['p', 'n', 'b', 'q']:
+                opening_bonus += 10
+
+         # Loop over all tiles in the game board
+        for y in range(8):
+            for x in range(8):
+                # Get the piece on the current tile as a string
+                piece = gametiles[y][x].get_piece()
+                
+                # Evaluate piece development
+                if piece in ['N', 'B']:  # Only considering knights and bishops for this example
+                    if (x, y) in effective_squares[piece]:
+                        development_value += development_bonuses[piece]
+                
+                # Evaluate pawn moves
+                if piece == 'P' and y != 6:  # Assuming white pawns start on row 6
+                    development_value += pawn_move_penalty
+
+        
+
+        # Development of knights and bishops
+        for y in [0, 7]:
+            for x in [1, 2, 5, 6]:
+                piece = gametiles[y][x].pieceonTile.tostring()
+                if piece.lower() in ['n', 'b'] and not gametiles[y][x].is_piece_initial():
+                    opening_bonus += 20
+
+        # King safety (castling)
+        for y in [0, 7]:
+            if gametiles[y][4].pieceonTile.tostring().lower() == 'k' and not gametiles[y][4].is_piece_initial():
+                opening_bonus += 30
+
+
         # Check for doubled, isolated, and passed pawns
         for x in range(8):
             col_pawns = [gametiles[y][x].pieceonTile.tostring() for y in range(8)]
@@ -527,7 +583,7 @@ class AI:
 
 
         # Adjust the total evaluation based on king safety
-        total_evaluation = material_value + positional_value + center_control_value + pawn_structure_value + tactical_value + endgame_value + king_activity_score + pawn_structure_score - black_king_safety + white_king_safety
+        total_evaluation = material_value + positional_value + center_control_value + pawn_structure_value + tactical_value + endgame_value + king_activity_score + pawn_structure_score + opening_bonus + development_value
                     
         # Return the negative of the evaluation if playing as black
         return -total_evaluation
