@@ -590,7 +590,8 @@ class AI:
 
 
         # Adjust the total evaluation based on king safety
-        total_evaluation = material_value + center_control_value + pawn_structure_value + tactical_value + endgame_value  + pawn_structure_score 
+        total_evaluation = material_value + positional_value + center_control_value + pawn_structure_value + tactical_value + endgame_value + king_activity_score + pawn_structure_score + opening_bonus + development_value + king_safety_value
+ 
                     
         # Return the negative of the evaluation if playing as black
         return -total_evaluation
