@@ -251,14 +251,16 @@ class AI:
 
 
     def calculateb(self, gametiles):
+        # Initialize material and positional values to zero
         material_value = 0
         positional_value = 0
-        
+
+        # Dictionary containing the material value of each piece type
         piece_values = {
             'P': -100, 'N': -320, 'B': -330, 'R': -500, 'Q': -900, 'K': -20000,
             'p': 100, 'n': 320, 'b': 330, 'r': 500, 'q': 900, 'k': 20000
         }
-
+        # Positional values for pawn
         pawn_table = [
             0, 0, 0, 0, 0, 0, 0, 0,
             5, 10, 10, -20, -20, 10, 10, 5,
@@ -269,7 +271,7 @@ class AI:
             50, 50, 50, 50, 50, 50, 50, 50,
             0, 0, 0, 0, 0, 0, 0, 0
         ]
-
+        # Positional values for knight
         knight_table = [
             -50, -40, -30, -30, -30, -30, -40, -50,
             -40, -20, 0, 5, 5, 0, -20, -40,
@@ -280,7 +282,7 @@ class AI:
             -40, -20, 0, 0, 0, 0, -20, -40,
             -50, -40, -30, -30, -30, -30, -40, -50
         ]
-
+        # Positional values for bishop
         bishop_table = [
             -20, -10, -10, -10, -10, -10, -10, -20,
             -10, 5, 0, 0, 0, 0, 5, -10,
@@ -291,7 +293,7 @@ class AI:
             -10, 0, 0, 0, 0, 0, 0, -10,
             -20, -10, -10, -10, -10, -10, -10, -20
         ]
-        
+        # Positional values for rook    
         rook_table = [
             0, 0, 0, 5, 5, 0, 0, 0,
             -5, 0, 0, 0, 0, 0, 0, -5,
@@ -302,7 +304,7 @@ class AI:
             5, 10, 10, 10, 10, 10, 10, 5,
             0, 0, 0, 0, 0, 0, 0, 0
         ]
-        
+        # Posititonal values for queen
         queen_table = [
             -20, -10, -10, -5, -5, -10, -10, -20,
             -10, 0, 0, 0, 0, 0, 0, -10,
@@ -323,11 +325,14 @@ class AI:
         -30, -40, -40, -50, -50, -40, -40, -30,
         -30, -40, -40, -50, -50, -40, -40, -30,
         -30, -40, -40, -50, -50, -40, -40, -30 ]
-        
+
+        # Loop over all tiles in the game board
         for y in range(8):
             for x in range(8):
+                # Get the piece on the current tile as a string
                 piece = gametiles[y][x].pieceonTile.tostring()
-                # print(piece)
+                
+                # If the piece is black (lowercase), add its positional value from the respective table
                 if piece.islower():
                     positional_value += pawn_table[(7-y)*8+x] if piece == 'p' else 0
                     positional_value += knight_table[(7-y)*8+x] if piece == 'n' else 0
@@ -335,6 +340,8 @@ class AI:
                     positional_value += rook_table[(7-y)*8+x] if piece == 'r' else 0
                     positional_value += queen_table[(7-y)*8+x] if piece == 'q' else 0
                     positional_value += king_table[(7-y)*8+x] if piece == 'k' else 0
+
+                # If the piece is white (uppercase), subtract its positional value from the respective table
                 elif piece.isupper():
                     positional_value -= pawn_table[y*8+x] if piece == 'P' else 0
                     positional_value -= knight_table[y*8+x] if piece == 'N' else 0
@@ -342,10 +349,12 @@ class AI:
                     positional_value -= rook_table[y*8+x] if piece == 'R' else 0
                     positional_value -= queen_table[y*8+x] if piece == 'Q' else 0
                     positional_value -= king_table[y*8+x] if piece == 'K' else 0
-
+                    
+                # Add or subtract the material value of the piece, if it exists in the dictionary
                 if piece in piece_values:
                     material_value += piece_values[piece]
-
+                    
+        # Return the total evaluation, which is the sum of material and positional values
         return material_value + positional_value
 
 
