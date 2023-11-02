@@ -594,7 +594,7 @@ class AI:
  
                     
         # Return the negative of the evaluation if playing as black
-        return -total_evaluation
+        return total_evaluation
     
     def find_king_position(self, gametiles):
         for y in range(8):
