@@ -306,6 +306,57 @@ class AI:
         'p': 20, 'n': 30, 'b': 30, 'r': 50, 'q': 90, 'k': 0
         }
 
+        # Get all legal moves for the current position
+        legal_moves = self.get_legal_moves(gametiles)
+
+
+        non_stalemate_moves = []
+        for move in legal_moves:
+            if not self.causes_stalemate(move, gametiles):
+                non_stalemate_moves.append(move)
+
+        if non_stalemate_moves:
+            legal_moves = non_stalemate_moves
+
+        # Initialize best score and best move
+        best_score = float('-inf')
+        best_move = None
+
+        # Evaluate each move
+        for move in legal_moves:
+            # Apply the move to a copy of the game board
+            new_gametiles = self.apply_move(move, gametiles)
+    
+            # Evaluate the board after the move
+            score = self.evaluate_board(new_gametiles)
+    
+            # If this move is better than the best found so far, remember it
+            if score > best_score:
+                best_score = score
+                best_move = move
+        return best_move
+
+        def evaluate_board(self, gametiles):
+            """
+            Evaluate the board and return a score.
+            Positive values are good for black, negative for white.
+            """
+            # Dictionary containing the material value of each piece type
+            piece_values = {
+                'P': -100, 'N': -320, 'B': -330, 'R': -500, 'Q': -900, 'K': -20000,
+                'p': 100, 'n': 320, 'b': 330, 'r': 500, 'q': 900, 'k': 20000
+            }
+        
+            score = 0
+            for row in gametiles:
+                for tile in row:
+                    piece = tile.piece
+                    if piece:
+                        # Get the value of the piece from the dictionary
+                        value = piece_values[piece.type]
+                        score += value
+            return score
+
         # Dictionary containing the material value of each piece type
         piece_values = {
             'P': -100, 'N': -320, 'B': -330, 'R': -500, 'Q': -900, 'K': -20000,
