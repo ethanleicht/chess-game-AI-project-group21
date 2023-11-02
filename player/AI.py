@@ -258,6 +258,31 @@ class AI:
         white_king_safety = 0
         black_king_safety = 0
 
+        # Pawn structure evaluation
+        pawn_structure_value = 0
+
+        # Tactical themes evaluation
+        tactical_value = 0
+
+        # Define some basic bonuses for tactical opportunitieS
+        fork_bonus = 30
+        pin_bonus = 20
+
+        # Define some basic penalties or bonuses for pawn structure
+        doubled_pawn_penalty = -20
+        isolated_pawn_penalty = -20
+        passed_pawn_bonus = 30
+
+        # Control of center squares (D4, D5, E4, E5)
+        center_squares = [(3, 3), (3, 4), (4, 3), (4, 4)]
+        center_control_value = 0
+        
+        # Values for control of each center square
+        center_control_bonus = {
+        'P': 20, 'N': 30, 'B': 30, 'R': 50, 'Q': 90, 'K': 0,
+        'p': 20, 'n': 30, 'b': 30, 'r': 50, 'q': 90, 'k': 0
+        }
+
         # Dictionary containing the material value of each piece type
         piece_values = {
             'P': -100, 'N': -320, 'B': -330, 'R': -500, 'Q': -900, 'K': -20000,
@@ -329,6 +354,44 @@ class AI:
         -30, -40, -40, -50, -50, -40, -40, -30,
         -30, -40, -40, -50, -50, -40, -40, -30 ]
 
+
+        for square in center_squares:
+            x, y = square
+            piece = gametiles[y][x].pieceonTile.tostring()
+    
+            # Add or subtract the control value for the piece occupying the center
+            if piece in center_control_bonus:
+                center_control_value += center_control_bonus[piece] if piece.islower() else -center_control_bonus[piece]
+
+            # Check for doubled, isolated, and passed pawns
+        for x in range(8):
+            col_pawns = [gametiles[y][x].pieceonTile.tostring() for y in range(8)]
+            num_pawns = col_pawns.count('P') + col_pawns.count('p')
+    
+            # Doubled pawns (more than one pawn in a file)
+            if num_pawns > 1:
+                pawn_structure_value += doubled_pawn_penalty * (num_pawns - 1)
+    
+            for y in range(8):
+                piece = gametiles[y][x].pieceonTile.tostring()
+    
+                if piece.lower() == 'p':
+                    # Isolated pawns (no friendly pawns on adjacent files)
+                    if (x == 0 or 'p' not in [gametiles[y][x-1].pieceonTile.tostring() for y in range(8)]) and \
+                       (x == 7 or 'p' not in [gametiles[y][x+1].pieceonTile.tostring() for y in range(8)]):
+                        pawn_structure_value += isolated_pawn_penalty if piece.islower() else -isolated_pawn_penalty
+    
+                    # Passed pawns (no opposing pawns ahead on the same or adjacent files)
+                    opposing_pawns_ahead = False
+                    for ahead_y in range(y+1, 8) if piece.islower() else range(y-1, -1, -1):
+                        if 'P' in [gametiles[ahead_y][file].pieceonTile.tostring() for file in range(max(0, x-1), min(7, x+1) + 1)]:
+                            opposing_pawns_ahead = True
+                            break
+    
+                    if not opposing_pawns_ahead:
+                        pawn_structure_value += passed_pawn_bonus if piece.islower() else -passed_pawn_bonus
+
+
         # Loop over all tiles in the game board
         for y in range(8):
             for x in range(8):
@@ -363,11 +426,46 @@ class AI:
                 elif piece == 'K':
                     white_king_safety = evaluate_pawn_shield(gametiles, x, y, 'white')
 
-        # Adjust the total evaluation based on king safety
-        total_evaluation = material_value + positional_value - black_king_safety + white_king_safety
+        # Check for forks and pins
+        for y in range(8):
+            for x in range(8):
+                piece = gametiles[y][x].pieceonTile.tostring()
+                if piece.lower() in ['n', 'q', 'r', 'b']:  # Pieces capable of forks or pins
+                    piece_is_white = piece.isupper()
                     
-        # Return the total evaluation, which is the sum of material and positional values
-        return total_evaluation
+                    # Check for forks (a piece attacks two or more valuable enemy pieces)
+                    attacked_squares = self.get_attacked_squares(x, y, gametiles)
+                    enemy_pieces_attacked = [gametiles[ay][ax].pieceonTile.tostring() for ax, ay in attacked_squares if gametiles[ay][ax].pieceonTile.tostring().isupper() != piece_is_white and gametiles[ay][ax].pieceonTile.tostring() != '']
+                    if len(enemy_pieces_attacked) >= 2:
+                        tactical_value += fork_bonus if piece_is_white else -fork_bonus
+    
+                    # Check for pins (an enemy piece cannot move without exposing a more valuable piece)
+                    # This is a simplified version that only checks for direct lines of attack
+                    directions = [(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)]
+                    for dx, dy in directions:
+                        pinned_piece = None
+                        pinning_piece = None
+                        for i in range(1, 8):
+                            nx, ny = x + dx * i, y + dy * i
+                            if 0 <= nx < 8 and 0 <= ny < 8:
+                                current_piece = gametiles[ny][nx].pieceonTile.tostring()
+                                if current_piece != '':
+                                    if pinned_piece is None and current_piece.isupper() != piece_is_white:
+                                        pinned_piece = (nx, ny)
+                                    elif pinned_piece and current_piece.isupper() == piece_is_white:
+                                        pinning_piece = (nx, ny)
+                                        break
+                                    else:
+                                        break
+                        if pinned_piece and pinning_piece:
+                            tactical_value += pin_bonus if piece_is_white else -pin_bonus
+
+
+        # Adjust the total evaluation based on king safety
+        total_evaluation = material_value + positional_value + center_control_value + pawn_structure_value + tactical_value - black_king_safety + white_king_safety
+                    
+        # Return the negative of the evaluation if playing as black
+        return -total_evaluation
 
 
     def evaluate_pawn_shield(gametiles, king_x, king_y, color):
