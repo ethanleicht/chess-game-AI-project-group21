@@ -254,6 +254,9 @@ class AI:
         # Initialize material and positional values to zero
         material_value = 0
         positional_value = 0
+        # Initialize king safety values to zero
+        white_king_safety = 0
+        black_king_safety = 0
 
         # Dictionary containing the material value of each piece type
         piece_values = {
@@ -353,9 +356,34 @@ class AI:
                 # Add or subtract the material value of the piece, if it exists in the dictionary
                 if piece in piece_values:
                     material_value += piece_values[piece]
+
+                # Check if the piece is a king and evaluate its safety
+                if piece == 'k':
+                    black_king_safety = evaluate_pawn_shield(gametiles, x, y, 'black')
+                elif piece == 'K':
+                    white_king_safety = evaluate_pawn_shield(gametiles, x, y, 'white')
+
+        # Adjust the total evaluation based on king safety
+        total_evaluation = material_value + positional_value - black_king_safety + white_king_safety
                     
         # Return the total evaluation, which is the sum of material and positional values
-        return material_value + positional_value
+        return total_evaluation
+
+
+    def evaluate_pawn_shield(gametiles, king_x, king_y, color):
+        pawn_shield_value = 0
+        directions = [-1, 0, 1]
+        
+        for dx in directions:
+            for dy in [-1, 1]:  # Only look ahead of the king
+                x, y = king_x + dx, king_y + (dy if color == 'white' else -dy)
+                
+                if 0 <= x < 8 and 0 <= y < 8:
+                    piece_str = gametiles[y][x].pieceonTile.tostring()
+                    if (piece_str == 'P' and color == 'white') or (piece_str == 'p' and color == 'black'):
+                        pawn_shield_value += 50  # Assign a value for each shielding pawn
+    
+        return pawn_shield_value
 
 
 
