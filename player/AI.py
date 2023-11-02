@@ -393,6 +393,13 @@ class AI:
         king_activity_score = 0
         pawn_structure_score = 0
 
+        # Find the king's position
+        king_position = self.find_king_position(gametiles) 
+    
+        # Evaluate king safety
+        king_safety_value = self.calculate_king_safety(gametiles, king_position)
+    
+
         for y in range(8):
             for x in range(8):
                 piece = gametiles[y][x].pieceonTile.tostring()
@@ -583,10 +590,47 @@ class AI:
 
 
         # Adjust the total evaluation based on king safety
-        total_evaluation = material_value + positional_value + center_control_value + pawn_structure_value + tactical_value + endgame_value + king_activity_score + pawn_structure_score + opening_bonus + development_value
+        total_evaluation = material_value + positional_value + center_control_value + pawn_structure_value + tactical_value + endgame_value + king_activity_score + pawn_structure_score + opening_bonus + development_value + king_safety_value
                     
         # Return the negative of the evaluation if playing as black
         return -total_evaluation
+    
+    def find_king_position(self, gametiles):
+        for y in range(8):
+            for x in range(8):
+                if gametiles[y][x].pieceonTile.tostring() == 'K':  # Assuming 'K' is the king
+                    return (x, y)
+        return None  # If the king is not found, which shouldn't happen in a legal chess position
+
+    def calculate_king_safety(self, gametiles, king_position):
+        king_safety_score = 0
+        
+        # Define the squares around the king
+        king_zone_offsets = [
+            (-1, -1), (-1, 0), (-1, 1),
+            (0, -1),           (0, 1),
+            (1, -1),  (1, 0),  (1, 1)
+        ]
+        
+        # Count defenders and attackers
+        defenders = 0
+        attackers = 0
+        
+        for offset in king_zone_offsets:
+            x, y = king_position[0] + offset[0], king_position[1] + offset[1]
+            # Ensure the square is within the bounds of the board
+            if 0 <= x < 8 and 0 <= y < 8:
+                piece = gametiles[y][x].pieceonTile.tostring()
+                if piece.islower(): # Assuming lower case are your opponent's pieces
+                    attackers += 1
+                elif piece.isupper(): # Assuming upper case are your pieces
+                    defenders += 1
+        
+        # Calculate safety score based on the number of defenders and attackers
+        king_safety_score += (defenders - attackers) * 10
+                
+        return king_safety_score
+
 
 
     def evaluate_pawn_shield(gametiles, king_x, king_y, color):
