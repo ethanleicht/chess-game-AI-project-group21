@@ -258,6 +258,9 @@ class AI:
         white_king_safety = 0
         black_king_safety = 0
 
+        # Endgame evaluation adjustments
+        endgame_value = 0
+
         # Pawn structure evaluation
         pawn_structure_value = 0
 
@@ -354,7 +357,50 @@ class AI:
         -30, -40, -40, -50, -50, -40, -40, -30,
         -30, -40, -40, -50, -50, -40, -40, -30 ]
 
+        king_activity_table = [
+        -50, -40, -30, -20, -20, -30, -40, -50,
+        -30, -20, -10, 0, 0, -10, -20, -30,
+        -30, -10, 20, 30, 30, 20, -10, -30,
+        -30, -10, 30, 40, 40, 30, -10, -30,
+        -30, -10, 30, 40, 40, 30, -10, -30,
+        -30, -10, 20, 30, 30, 20, -10, -30,
+        -30, -20, -10, 0, 0, -10, -20, -30,
+        -50, -40, -30, -20, -20, -30, -40, -50 ]
 
+        passed_pawn_bonus = 50
+        connected_passed_pawn_bonus = 30
+
+        king_activity_score = 0
+        pawn_structure_score = 0
+
+        for y in range(8):
+            for x in range(8):
+                piece = gametiles[y][x].pieceonTile.tostring()
+    
+                # King activity
+                if piece == 'k':
+                    king_activity_score += king_activity_table[y * 8 + x]
+                elif piece == 'K':
+                    king_activity_score -= king_activity_table[(7 - y) * 8 + x]
+    
+                # Pawn structure
+                if piece in ['p', 'P']:
+                    # Check for passed pawns
+                    is_passed = True
+                    for opponent_y in range(8):
+                        opponent_piece = gametiles[opponent_y][x].pieceonTile.tostring()
+                        if (piece == 'p' and opponent_piece == 'P') or (piece == 'P' and opponent_piece == 'p'):
+                            is_passed = False
+                            break
+                    if is_passed:
+                        pawn_structure_score += passed_pawn_bonus
+                        # Check for connected passed pawns
+                        for adj_x in range(max(0, x - 1), min(8, x + 2)):
+                            adjacent_piece = gametiles[y][adj_x].pieceonTile.tostring()
+                            if adjacent_piece == piece:
+                                pawn_structure_score += connected_passed_pawn_bonus
+    
+    
         for square in center_squares:
             x, y = square
             piece = gametiles[y][x].pieceonTile.tostring()
@@ -363,7 +409,7 @@ class AI:
             if piece in center_control_bonus:
                 center_control_value += center_control_bonus[piece] if piece.islower() else -center_control_bonus[piece]
 
-            # Check for doubled, isolated, and passed pawns
+        # Check for doubled, isolated, and passed pawns
         for x in range(8):
             col_pawns = [gametiles[y][x].pieceonTile.tostring() for y in range(8)]
             num_pawns = col_pawns.count('P') + col_pawns.count('p')
@@ -460,9 +506,28 @@ class AI:
                         if pinned_piece and pinning_piece:
                             tactical_value += pin_bonus if piece_is_white else -pin_bonus
 
+        # Adjustments based on the reduced number of pieces 
+        if self.is_endgame(gametiles):
+            for y in range(8):
+                for x in range(8):
+                    piece = gametiles[y][x].pieceonTile.tostring()
+    
+                    # King activity in the endgame is important
+                    if piece == 'k':
+                        endgame_value += self.king_endgame_table[(7-y)*8+x]
+                    elif piece == 'K':
+                        endgame_value -= self.king_endgame_table[y*8+x]
+                    
+                    # Encourage pawns to advance in the endgame
+                    if piece == 'p':
+                        endgame_value += (7-y) * 10
+                    elif piece == 'P':
+                        endgame_value -= y * 10
+                        
+
 
         # Adjust the total evaluation based on king safety
-        total_evaluation = material_value + positional_value + center_control_value + pawn_structure_value + tactical_value - black_king_safety + white_king_safety
+        total_evaluation = material_value + positional_value + center_control_value + pawn_structure_value + tactical_value + endgame_value + king_activity_score + pawn_structure_score - black_king_safety + white_king_safety
                     
         # Return the negative of the evaluation if playing as black
         return -total_evaluation
@@ -482,6 +547,20 @@ class AI:
                         pawn_shield_value += 50  # Assign a value for each shielding pawn
     
         return pawn_shield_value
+
+    def is_endgame(self, gametiles):
+        # Define conditions for an endgame (e.g., reduced number of pieces)
+        piece_count = sum(1 for row in gametiles for tile in row if tile.pieceonTile is not None)
+        return piece_count <= 12  #  condition
+        king_endgame_table = [
+            -50, -40, -30, -20, -20, -30, -40, -50,
+            -30, -20, -10, 0, 0, -10, -20, -30,
+            -30, -10, 20, 30, 30, 20, -10, -30,
+            -30, -10, 30, 40, 40, 30, -10, -30,
+            -30, -10, 30, 40, 40, 30, -10, -30,
+            -30, -10, 20, 30, 30, 20, -10, -30,
+            -30, -20, -10, 0, 0, -10, -20, -30,
+            -50, -40, -30, -20, -20, -30, -40, -50 ]
 
 
 
