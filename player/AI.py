@@ -479,6 +479,86 @@ class AI:
                     knight_checks = [gametiles[y + dy][x + dx].pieceonTile.tostring().lower() == 'n' for dx, dy in [(-2, -1), (-2, 1), (2, -1), (2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2)] if 0 <= x + dx < 8 and 0 <= y + dy < 8]
                     if any(knight_checks):
                         positional_value += 100 if piece.isupper() else -100  # Large value for checkmate
+        # King and Queen Checkmate Check
+        if king_position is not None:
+            king_row = king_position
+            queen_found = False
+            for i in range(8):
+                piece_on_square = gametiles[i][king_row].pieceonTile.tostring().lower()
+                if piece_on_square == 'q':
+                    queen_found = True
+                elif piece_on_square not in 'prnbk.':
+                    break  # Other piece obstructs the checkmate
+            if queen_found:
+                positional_value += 100 if piece.isupper() else -100  # Large value for checkmate
+        
+        # King and Rook Checkmate Check
+        if king_position is not None:
+            king_row = king_position
+            rook_found = False
+            for i in range(8):
+                piece_on_square = gametiles[i][king_row].pieceonTile.tostring().lower()
+                if piece_on_square == 'r':
+                    rook_found = True
+                elif piece_on_square not in 'pnqbk.':
+                    break  # Other piece obstructs the checkmate
+            if rook_found:
+                positional_value += 100 if piece.isupper() else -100  # Large value for checkmate
+        
+        # Two Rooks Checkmate Check
+        if king_position is not None:
+            king_row = king_position
+            rook_count = 0
+            for i in range(8):
+                piece_on_square = gametiles[i][king_row].pieceonTile.tostring().lower()
+                if piece_on_square == 'r':
+                    rook_count += 1
+                elif piece_on_square not in 'pnqbk.':
+                    break  # Other piece obstructs the checkmate
+            if rook_count >= 2:
+                positional_value += 100 if piece.isupper() else -100  # Large value for checkmate
+
+        # King in the Corner Checkmate Check
+        if king_position is not None:
+            king_row = king_position
+            king_column = y  # Assuming 'y' is the current row
+            if (king_row == 0 or king_row == 7) and (king_column == 0 or king_column == 7):
+                # Check if the king is in a corner
+                positional_value += 100 if piece.isupper() else -100  # Large value for checkmate
+
+       # Fool's Mate Check
+        if gametiles[y][1].pieceonTile.tostring().lower() == 'k':
+            # Check if the king is in the expected position (e.g., square b1 for White or b8 for Black)
+            if gametiles[y][3].pieceonTile.tostring().lower() == 'q':
+                # Check if a queen is on the expected square (e.g., square d1 for White or d8 for Black)
+                if gametiles[y][2].pieceonTile.tostring().lower() == '.' and gametiles[y][4].pieceonTile.tostring().lower() == '.':
+                    # Check if the squares between the king and queen are empty
+                    positional_value += 100 if piece.isupper() else -100  # Large value for Fool's Mate
+ 
+        # Knight and Bishop Checkmate (Smothered Mate) Check
+        if king_position is not None:
+            king_row = king_position
+            smothered = False
+
+            # Check for a bishop on a square where it can attack the king
+            if (king_row > 0 and gametiles[y - 1][king_row - 1].pieceonTile.tostring().lower() == 'b') or \
+            (king_row < 7 and gametiles[y - 1][king_row + 1].pieceonTile.tostring().lower() == 'b'):
+                
+                for i in range(1, 8):
+                    piece_on_square = gametiles[y - 1][king_row].pieceonTile.tostring().lower()
+
+                    # Check if the squares on the rank just in front of the king are all empty
+                    if piece_on_square != '.':
+                        break
+
+                    # Check if the knight can deliver check on the expected square
+                    if (king_row > 1 and gametiles[y - 2][king_row - 1].pieceonTile.tostring().lower() == 'n') or \
+                    (king_row < 6 and gametiles[y - 2][king_row + 1].pieceonTile.tostring().lower() == 'n'):
+                        smothered = True
+                        break
+
+                if smothered:
+                    positional_value += 100 if piece.isupper() else -100  # Large value for Knight and Bishop Checkmate
 
         value += positional_value + king_safety_value + center_control_value + development_value + bishop_pair_value + rook_placement_value + queen_activity_value + endgame_value
         return -value
