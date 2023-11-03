@@ -249,241 +249,238 @@ class AI:
             arr.append([y,x,move[0],move[1],mk])
         return arr
 
-    def calculate_king_safety(self, gametiles, x, y):
-        # Assign a penalty for each open file, open rank, and open diagonal near the king
-        open_file_penalty = 20
-        open_rank_penalty = 20
-        open_diagonal_penalty = 20
-        safety_penalty = 0
 
-        # Check for open files (no pawns on the king's file)
-        if all(gametiles[i][x].pieceonTile.tostring().lower() != 'p' for i in range(8)):
-            safety_penalty += open_file_penalty
-
-        # Check for open ranks (no pawns on the king's rank)
-        if all(gametiles[y][i].pieceonTile.tostring().lower() != 'p' for i in range(8)):
-            safety_penalty += open_rank_penalty
-
-        # Check for open diagonals (no pawns on the diagonals adjacent to the king)
-        for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
-            cx, cy = x, y
-            while 0 <= cx < 8 and 0 <= cy < 8:
-                if gametiles[cy][cx].pieceonTile.tostring().lower() == 'p':
-                    break
-                cx += dx
-                cy += dy
-            else:
-                safety_penalty += open_diagonal_penalty
-
-        return safety_penalty
-
-    def calculateb(self,gametiles):
-        material_value = 0
+    def calculateb(self, gametiles):
+        piece_value = {
+            'P': 100, 'N': 320, 'B': 330, 'R': 500, 'Q': 900, 'K': 20000,
+            'p': -100, 'n': -320, 'b': -330, 'r': -500, 'q': -900, 'k': -20000
+            }
         positional_value = 0
-        king_safety_score = 0
-        piece_values = {'P': 100, 'N': 320, 'B': 330, 'R': 500, 'Q': 900, 'K': 20000,
-                        'p': -100, 'n': -320, 'b': -330, 'r': -500, 'q': -900, 'k': -20000}
-
-        # Penalties for pawn structure weaknesses
-        doubled_pawn_penalty = -20
-        isolated_pawn_penalty = -20
-        backward_pawn_penalty = -20
-
-        # Control of the center evaluation
-        center_control_score = 0
-        center_squares = [(3, 3), (3, 4), (4, 3), (4, 4)]  # D4, D5, E4, E5
-
-        # Positional values for pawn
-        pawn_table = [
-            0, 0, 0, 0, 0, 0, 0, 0,
-            5, 10, 10, -20, -20, 10, 10, 5,
-            5, -5, -10, 0, 0, -10, -5, 5,
-            0, 0, 0, 20, 20, 0, 0, 0,
-            5, 5, 10, 25, 25, 10, 5, 5,
-            10, 10, 20, 30, 30, 20, 10, 10,
-            50, 50, 50, 50, 50, 50, 50, 50,
-            0, 0, 0, 0, 0, 0, 0, 0 ]
+        value = 0
+        king_safety_value = 0
+        development_value = 0
+        center_control_value = 0
+        rook_placement_value = 0
+        queen_activity_value = 0
+        endgame_value = 0
+        central_squares = [(3, 3), (3, 4), (4, 3), (4, 4)]  # e4, d4, e5, d5
+        original_positions = {
+            'P': [(x, 1) for x in range(8)],
+            'p': [(x, 6) for x in range(8)],
+            'N': [(1, 0), (6, 0)],
+            'n': [(1, 7), (6, 7)],
+            'B': [(2, 0), (5, 0)],
+            'b': [(2, 7), (5, 7)],
+            }
+        bishop_pair_value = 0
+        white_bishops = 0
+        black_bishops = 0
         
-        # Positional values for knight
-        knight_table = [
-            -50, -40, -30, -30, -30, -30, -40, -50,
-            -40, -20, 0, 5, 5, 0, -20, -40,
-            -30, 5, 10, 15, 15, 10, 5, -30,
-            -30, 0, 15, 20, 20, 15, 0, -30,
-            -30, 5, 15, 20, 20, 15, 5, -30,
-            -30, 0, 10, 15, 15, 10, 0, -30,
-            -40, -20, 0, 0, 0, 0, -20, -40,
-            -50, -40, -30, -30, -30, -30, -40, -50 ]
+
+        # Variables for pawn structure evaluation
+        white_pawn_files = [0] * 8
+        black_pawn_files = [0] * 8
         
-        # Positional values for bishop
-        bishop_table = [
-            -20, -10, -10, -10, -10, -10, -10, -20,
-            -10, 5, 0, 0, 0, 0, 5, -10,
-            -10, 10, 10, 10, 10, 10, 10, -10,
-            -10, 0, 10, 10, 10, 10, 0, -10,
-            -10, 5, 5, 10, 10, 5, 5, -10,
-            -10, 0, 5, 10, 10, 5, 0, -10,
-            -10, 0, 0, 0, 0, 0, 0, -10,
-            -20, -10, -10, -10, -10, -10, -10, -20 ]
-
-        # Positional values for rook    
-        rook_table = [
-            0, 0, 0, 5, 5, 0, 0, 0,
-            -5, 0, 0, 0, 0, 0, 0, -5,
-            -5, 0, 0, 0, 0, 0, 0, -5,
-            -5, 0, 0, 0, 0, 0, 0, -5,
-            -5, 0, 0, 0, 0, 0, 0, -5,
-            -5, 0, 0, 0, 0, 0, 0, -5,
-            5, 10, 10, 10, 10, 10, 10, 5,
-            0, 0, 0, 0, 0, 0, 0, 0 ]
-        # Posititonal values for queen
-        queen_table = [
-            -20, -10, -10, -5, -5, -10, -10, -20,
-            -10, 0, 0, 0, 0, 0, 0, -10,
-            -10, 0, 5, 5, 5, 5, 0, -10,
-            -5, 0, 5, 5, 5, 5, 0, -5,
-            0, 0, 5, 5, 5, 5, 0, -5,
-            -10, 5, 5, 5, 5, 5, 0, -10,
-            -10, 0, 5, 0, 0, 0, 0, -10,
-            -20, -10, -10, -5, -5, -10, -10, -20 ]
-        # Positional values for kings 
-        king_table = [
-            20, 30, 10, 0, 0, 10, 30, 20,
-            20, 20, 0, 0, 0, 0, 20, 20,
-            -10, -20, -20, -20, -20, -20, -20, -10,
-            -20, -30, -30, -40, -40, -30, -30, -20,
-            -30, -40, -40, -50, -50, -40, -40, -30,
-            -30, -40, -40, -50, -50, -40, -40, -30,
-            -30, -40, -40, -50, -50, -40, -40, -30,
-            -30, -40, -40, -50, -50, -40, -40, -30 ]
-
-        # Helper function to check if a tile is occupied by a pawn
-        def is_pawn(tile):
-            # Check if the piece on the tile is a pawn of the specified color
-            return tile.pieceonTile.tostring().lower() == 'p'
-
-        def is_controlled_by(tile, gametiles):
-            # Find the position of the tile in the gametiles list
-            for y, row in enumerate(gametiles):
-                for x, current_tile in enumerate(row):
-                    if current_tile == tile:
-                        # Once we find the tile, we can proceed with the original logic
-                        for dx in range(-1, 2):
-                            for dy in range(-1, 2):
-                                if dx == 0 and dy == 0:
-                                    continue
-                                nx, ny = x + dx, y + dy
-                                if 0 <= nx < 8 and 0 <= ny < 8:
-                                    neighbor_piece = gametiles[ny][nx].pieceonTile.tostring()
-                                    # Pawn control
-                                    if neighbor_piece.isalpha():
-                                        if dx in [-1, 1] and neighbor_piece.lower() == 'p' and (
-                                                (neighbor_piece.isupper() and dy == -1) or
-                                                (neighbor_piece.islower() and dy == 1)):
-                                            return 'upper' if neighbor_piece.islower() else 'lower'
-                                    # Knight control
-                                    if ((abs(dx) == 1 and abs(dy) == 2) or (abs(dx) == 2 and abs(dy) == 1)):
-                                        if neighbor_piece.lower() == 'n':
-                                            return 'upper' if neighbor_piece.islower() else 'lower'
-            return None  # Return None or an appropriate value if the tile is not found
-
-            # Rook control (horizontal and vertical)
-            for d in range(-1, 2, 2):
-                for nx, ny in [(x + d, y), (x, y + d)]:
-                    while 0 <= nx < 8 and 0 <= ny < 8:
-                        neighbor_piece = gametiles[ny][nx].pieceonTile.tostring()
-                        if neighbor_piece.isalpha():
-                            if neighbor_piece.lower() == 'r' or neighbor_piece.lower() == 'q':  # Considering queen as well
-                                return 'upper' if neighbor_piece.islower() else 'lower'
-                            break  # Blocked by another piece
-                        nx, ny = nx + d, ny + d
-
-            # Bishop and queen (diagonal) control
-            for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
-                nx, ny = x + dx, y + dy
-                while 0 <= nx < 8 and 0 <= ny < 8:
-                    neighbor_piece = gametiles[ny][nx].pieceonTile.tostring()
-                    if neighbor_piece.isalpha():
-                        if neighbor_piece.lower() in ['b', 'q']:  # Bishop or Queen
-                            return 'upper' if neighbor_piece.islower() else 'lower'
-                        break  # Blocked by another piece
-                    nx, ny = nx + dx, ny + dy
-
-            # King control
-            for dx in range(-1, 2):
-                for dy in range(-1, 2):
-                    if dx == 0 and dy == 0:
-                        continue
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < 8 and 0 <= ny < 8:
-                        neighbor_piece = gametiles[ny][nx].pieceonTile.tostring()
-                        if neighbor_piece.lower() == 'k':
-                            return 'upper' if neighbor_piece.islower() else 'lower'
-
-            return None  # Not controlled by any piece
-
-        for x, y in center_squares:
-            controlled_by = is_controlled_by(gametiles[y][x], gametiles)
-            if controlled_by == 'upper':
-                center_control_score -= 10  # Subtract points if controlled by white (uppercase)
-            elif controlled_by == 'lower':
-                center_control_score += 10  # Add points if controlled by black (lowercase)
-
-        # Loop over all tiles in the game board
-        for y in range(8):
-            for x in range(8):
-                # Get the piece on the current tile as a string
+        for x in range(8):
+            for y in range(8):
                 piece = gametiles[y][x].pieceonTile.tostring()
+                if piece == 'B':
+                    white_bishops += 1
+                elif piece == 'b':
+                    black_bishops += 1
+                if piece in original_positions and (x, y) in original_positions[piece]:
+                    # Penalize undeveloped pieces
+                    development_value -= 20 if piece.isupper() else 20  
+                elif piece and piece.lower() in 'nbp':
+                    # Bonus for developed pieces (knights, bishops, pawns)
+                    development_value += 40 if piece.isupper() else -40  # Bonus for developed pieces
+                if piece and piece in piece_value:
+                    # Add material value
+                    value += piece_value.get(piece, 0)                    
+                    # Add positional values
+                    if piece in 'Pp':
+                        positional_value += (y * 20) if piece == 'P' else ((7 - y) * 20)
+                    elif piece in 'Nn':
+                        # Knights are more valuable in the center
+                        if 2 <= x <= 5 and 2 <= y <= 5:
+                            positional_value += 60 if piece.isupper() else -60
+                    elif piece in 'Bb':
+                        # Bishops are more valuable when they control long diagonals
+                        positional_value += (7 - abs(x - y)) * 20 if piece.isupper() else -(7 - abs(x - y)) * 20
+                    elif piece in 'Rr':
+                        # Rooks are more valuable on open files or when they are connected
+                        is_open_file = all(gametiles[i][x].pieceonTile.tostring() in ' .-' for i in range(8))
+                        if is_open_file:
+                            positional_value += 50 if piece.isupper() else -50
+                    elif piece in 'Qq':
+                        # Queens are more powerful when they have mobility
+                        mobility = sum(gametiles[i][x].pieceonTile.tostring() in ' .-' for i in range(8))
+                        mobility += sum(gametiles[y][j].pieceonTile.tostring() in ' .-' for j in range(8))
+                        positional_value += mobility * 10 if piece.isupper() else -mobility * 10
+                    elif piece in 'Kk':
+                        # Kings are more valuable when they are safe
+                        safe_spots = sum(gametiles[i][x].pieceonTile.tostring() in ' .-' for i in range(max(0, y-1), min(7, y+2)))
+                        safe_spots += sum(gametiles[y][j].pieceonTile.tostring() in ' .-' for j in range(max(0, x-1), min(7, x+2)))
+                        positional_value += safe_spots * 20 if piece.isupper() else -safe_spots * 20
+                    # Pawn structure evaluation
+                    if piece == 'P':
+                        white_pawn_files[x] += 1
+                    elif piece == 'p':
+                        black_pawn_files[x] += 1
+                    # King safety evaluation
+                    if piece.lower() == 'k':
+                        is_castled = self.is_castled(x, y, gametiles)
+                        shielding_pawns = self.count_shielding_pawns(x, y, gametiles, piece.isupper())
+                        king_exposed = self.is_king_exposed(x, y, gametiles)
+                        # Add or subtract points based on king safety
+                        if is_castled:
+                            king_safety_value += 100 if piece.isupper() else -100
+                        king_safety_value += shielding_pawns * 10 if piece.isupper() else -shielding_pawns * 10
+                        if king_exposed:
+                            king_safety_value -= 100 if piece.isupper() else 100
 
-                if piece in piece_values:
-                    # If the piece is black (lowercase), add its positional value from the respective table
-                    if piece.islower():
-                        positional_value += pawn_table[(7-y)*8+x] if piece == 'p' else 0
-                        positional_value += knight_table[(7-y)*8+x] if piece == 'n' else 0
-                        positional_value += bishop_table[(7-y)*8+x] if piece == 'b' else 0
-                        positional_value += rook_table[(7-y)*8+x] if piece == 'r' else 0
-                        positional_value += queen_table[(7-y)*8+x] if piece == 'q' else 0
-                        positional_value += king_table[(7-y)*8+x] if piece == 'k' else 0
+        # Bonus for having both bishops
+        if white_bishops == 2:
+            bishop_pair_value += 40
+        if black_bishops == 2:
+            bishop_pair_value -= 40
+        # Evaluate pawn structure for white
+        for x in range(8):
+            if white_pawn_files[x] > 1:
+                positional_value -= 60 * (white_pawn_files[x] - 1)  # Doubled white pawns penalty
+            if white_pawn_files[x] > 0:
+                isolated = True
+                passed = True
+                for adj in range(max(0, x - 1), min(8, x + 2)):  # Check adjacent files
+                    if adj != x:
+                        if white_pawn_files[adj] > 0:
+                            isolated = False
+                        if black_pawn_files[adj] > 0:
+                            passed = False
+                if isolated:
+                    positional_value -= 60  # Isolated white pawn penalty
+                if passed:
+                    positional_value += 120  # Passed white pawn bonus
+        
+        # Evaluate pawn structure for black
+        for x in range(8):
+            if black_pawn_files[x] > 1:
+                positional_value += 50 * (black_pawn_files[x] - 1)  # Doubled black pawns penalty
+            if black_pawn_files[x] > 0:
+                isolated = True
+                passed = True
+                for adj in range(max(0, x - 1), min(8, x + 2)):  # Check adjacent files
+                    if adj != x:
+                        if black_pawn_files[adj] > 0:
+                            isolated = False
+                        if white_pawn_files[adj] > 0:
+                            passed = False
+                if isolated:
+                    positional_value += 50  # Isolated black pawn penalty
+                if passed:
+                    positional_value -= 100  # Passed black pawn bonus
 
-                    # If the piece is white (uppercase), subtract its positional value from the respective table
-                    elif piece.isupper():
-                        positional_value -= pawn_table[y*8+x] if piece == 'P' else 0
-                        positional_value -= knight_table[y*8+x] if piece == 'N' else 0
-                        positional_value -= bishop_table[y*8+x] if piece == 'B' else 0
-                        positional_value -= rook_table[y*8+x] if piece == 'R' else 0
-                        positional_value -= queen_table[y*8+x] if piece == 'Q' else 0
-                        positional_value -= king_table[y*8+x] if piece == 'K' else 0
-
-                    # Add king safety to the evaluation
-                    if piece == 'k':
-                        king_safety_score += self.calculate_king_safety(gametiles, x, y)
-                    elif piece == 'K':
-                        king_safety_score -= self.calculate_king_safety(gametiles, x, y)
-
-
-                    # Check for doubled pawns (two pawns of the same color on the same file)
-                    if is_pawn(gametiles[y][x]) or is_pawn(gametiles[y][x]):
-                        for offset in range(y + 1, 8):
-                            if is_pawn(gametiles[offset][x]):
-                                positional_value += doubled_pawn_penalty if piece.islower() else -doubled_pawn_penalty
-                    # Check for isolated pawns (no friendly pawns on adjacent files)
-                    if (is_pawn(gametiles[y][x]) or is_pawn(gametiles[y][x])) and \
-                            not any(is_pawn(gametiles[y][i]) for i in range(max(0, x - 1), min(8, x + 2)) if i != x):
-                         positional_value += isolated_pawn_penalty if piece.islower() else -isolated_pawn_penalty
-                    # Check for backward pawns (a pawn that is behind all pawns of the same color on the adjacent files)
-                    if (is_pawn(gametiles[y][x]) or is_pawn(gametiles[y][x])):
-                        is_backward = True
-                        for offset in range(y - 1, -1, -1):
-                            if any(is_pawn(gametiles[offset][i]) for i in range(max(0, x - 1), min(8, x + 2))):
-                                is_backward = False
-                                break
-                        if is_backward:
-                            positional_value += backward_pawn_penalty if piece.islower() else -backward_pawn_penalty
-
-                    material_value += piece_values[piece]
+        for x, y in central_squares:
+            piece = gametiles[y][x].pieceonTile.tostring()
+            if piece:
+                # Adjust the value based on the importance of the piece controlling the center
+                if piece.lower() in 'pn':
+                    control_value = 10
+                elif piece.lower() in 'br':
+                    control_value = 20
+                elif piece.lower() == 'q':
+                    control_value = 30
+                else:
+                    control_value = 0
                 
-        total_evaluation = material_value + positional_value + king_safety_score #+ center_control_score
-        return -total_evaluation
+                # Add or subtract points based on which side controls the center
+                center_control_value += control_value * 2 if piece.isupper() else -control_value * 2
+        for x in range(8):
+            has_white_rook = False
+            has_black_rook = False
+            for y in range(8):
+                piece = gametiles[y][x].pieceonTile.tostring()
+                if piece == 'R':
+                    if not has_white_rook:
+                        has_white_rook = True
+                        # Rook on open or semi-open file
+                        if all(gametiles[i][x].pieceonTile.tostring() in ' .-' for i in range(8) if i != y):
+                            rook_placement_value += 50
+                    else:
+                        # Connected rooks
+                        rook_placement_value += 30
+                elif piece == 'r':
+                    if not has_black_rook:
+                        has_black_rook = True
+                        # Rook on open or semi-open file
+                        if all(gametiles[i][x].pieceonTile.tostring() in ' .-' for i in range(8) if i != y):
+                            rook_placement_value -= 50
+                    else:
+                        # Connected rooks
+                        rook_placement_value -= 30
+                        
+        # Count the number of pieces developed to assess the game stage
+        total_pieces_developed = 0
+        for x in range(8):
+            for y in range(8):
+                piece = gametiles[y][x].pieceonTile.tostring()
+                if piece in 'NBRnbr':
+                    total_pieces_developed += 1
+
+        # Assess the queen's activity based on the game stage
+        for x in range(8):
+            for y in range(8):
+                piece = gametiles[y][x].pieceonTile.tostring()
+                if piece == 'Q':
+                    # Penalize early queen activity
+                    if total_pieces_developed < 6:
+                        queen_activity_value -= 20
+                elif piece == 'q':
+                    # Penalize early queen activity
+                    if total_pieces_developed < 6:
+                        queen_activity_value += 20
+
+        total_material = 0
+        for x in range(8):
+            for y in range(8):
+                piece = gametiles[y][x].pieceonTile.tostring().lower()
+                if piece in 'qrbn':
+                    total_material += 1
+
+        # In the endgame, king's centralization and pawn promotion potential become more important
+        if total_material <= 8:  # Consider it endgame if there are 8 or fewer pieces on the board
+            for x in range(8):
+                for y in range(8):
+                    piece = gametiles[y][x].pieceonTile.tostring()
+                    if piece:
+                        if piece.lower() == 'k':
+                            # King's centralization is more valuable in the endgame
+                            distance_from_center = max(abs(3.5 - x), abs(3.5 - y))
+                            endgame_value += (3.5 - distance_from_center) * 40 if piece.isupper() else -(3.5 - distance_from_center) * 40
+                        elif piece.lower() == 'p':
+                            # Pawn promotion potential becomes more critical
+                            distance_to_promotion = 7 - y if piece.isupper() else y
+                            endgame_value += (7 - distance_to_promotion) * 20 if piece.isupper() else -(7 - distance_to_promotion) * 20
+        
+        value += positional_value + king_safety_value + center_control_value + development_value + bishop_pair_value + rook_placement_value + queen_activity_value + endgame_value
+        return -value
+
+    def is_castled(self, x, y, gametiles):
+        return x == 6 or x == 2
+
+    def count_shielding_pawns(self, x, y, gametiles, is_white):
+        pawn_direction = -1 if is_white else 1
+        shielding_pawns = 0
+        for dx in range(-1, 2):
+            nx = x + dx
+            ny = y + pawn_direction
+            if 0 <= nx < 8 and 0 <= ny < 8:
+                if gametiles[ny][nx].pieceonTile.tostring().lower() == ('p' if is_white else 'P'):
+                    shielding_pawns += 1
+        return shielding_pawns
+
+    def is_king_exposed(self, x, y, gametiles):
+        return y in [0, 1, 6, 7] and x in [3, 4]
 
 
     def move(self,gametiles,y,x,n,m):
@@ -516,7 +513,7 @@ class AI:
             gametiles[n][m].pieceonTile.position=s
 
         if promotion==True:
-
+            
             if gametiles[y][x].pieceonTile.tostring()=='P':
                 gametiles[y][x].pieceonTile=nullpiece()
                 gametiles[n][m].pieceonTile=queen('Black',self.updateposition(n,m))
