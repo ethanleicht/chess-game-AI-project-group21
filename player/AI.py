@@ -469,7 +469,7 @@ class AI:
                 if all(p in 'prnbq.' for p in back_rank_pieces):
                     rook_or_queen_line = [gametiles[i][king_position].pieceonTile.tostring().lower() for i in range(8)]
                     if 'r' in rook_or_queen_line or 'q' in rook_or_queen_line:
-                        positional_value += 1000 if piece.isupper() else -1000  # Large value for checkmate
+                        positional_value += 100 if piece.isupper() else -100  # Large value for checkmate
         # Smothered Mate Check
         for y, x in [(0, 0), (0, 7), (7, 0), (7, 7)]:
             king_position = gametiles[y][x].pieceonTile.tostring().lower() == 'k'
@@ -478,7 +478,7 @@ class AI:
                 if all(p in 'prnbqk' for p in surrounding_pieces):
                     knight_checks = [gametiles[y + dy][x + dx].pieceonTile.tostring().lower() == 'n' for dx, dy in [(-2, -1), (-2, 1), (2, -1), (2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2)] if 0 <= x + dx < 8 and 0 <= y + dy < 8]
                     if any(knight_checks):
-                        positional_value += 1000 if piece.isupper() else -1000  # Large value for checkmate
+                        positional_value += 100 if piece.isupper() else -100  # Large value for checkmate
 
         value += positional_value + king_safety_value + center_control_value + development_value + bishop_pair_value + rook_placement_value + queen_activity_value + endgame_value
         return -value
